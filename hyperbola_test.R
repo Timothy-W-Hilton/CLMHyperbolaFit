@@ -102,9 +102,9 @@ plot_pd_fit <- function(pcp, npp_pd, pd_pars, fit)
     points(pars[[3]], pars[[4]], pch=13, col='#1b9e77', cex=3.0, lwd=5.0)
     ##
     legend(x='bottomleft',
-           legend=c('pseudodata', 'best fit', 'inflection'),
-           col=c('black', '#1b9e77', '#1b9e77'),
-           lty=c(0, 1, 0), pch=c(1, NA, 13),
+           legend=c('pseudodata', 'best hyperbola'),
+           col=c('black', '#1b9e77'),
+           lty=c(0, 1), pch=c(1, 13),
            inset=c(0.0, -0.6))
     ##
     df_pars <- data.frame(fit=fit[['optim']][['bestmem']], pseudo=pd_pars)
@@ -134,7 +134,7 @@ upper <- c(100, 100, 1000, 3000, 30)
 ## pars <- r[['optim']][['bestmem']]
 ## npp_mod <- WB_hyperbola(pcp, pars[[1]], pars[[2]], pars[[3]], pars[[4]], pars[[5]])
 
-n_pseudo <- 3
+n_pseudo <- 100
 pd <- generate_pseudodata(pcp, lower, upper, n_pseudo)
 fits <- lapply(pd[['data']], fit_WB_hyperbola, pcp=pcp, lower=lower, upper=upper, ctl=ctl)
 pdf(file='pseudodata.pdf')
