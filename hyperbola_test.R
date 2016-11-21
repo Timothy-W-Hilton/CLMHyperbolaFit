@@ -87,6 +87,9 @@ fit_WB_hyperbola<- function(pcp, npp, upper, lower, ctl)
     return(r)
 }
 
+df_to_char_vectors <- funtion(df) {
+    apply(
+
 plot_pd_fit <- function(pcp, npp_pd, pd_pars, fit)
 {
     ## Purpose:
@@ -96,8 +99,25 @@ plot_pd_fit <- function(pcp, npp_pd, pd_pars, fit)
     ## Author: Timothy W. Hilton, Date: 21 Nov 2016, 12:38
     pars <- fit[['optim']][['bestmem']]
     npp_mod <- WB_hyperbola(pcp, pars[[1]], pars[[2]], pars[[3]], pars[[4]], pars[[5]])
-    plot(pcp, npp_pd)
+    par(mar=c(12.1, 4.1, 4.1, 2.1), xpd=TRUE)
+    plot(pcp, npp_pd, ylab='annual NPP', xlab='annual pcp (mm)')
     points(pcp, npp_mod, col='red', type='l', lwd=3)
+    points(pars[[3]], pars[[4]], pch='*', col='red', cex=5.0)
+    points(pars[[3]], pars[[4]], pch='o', col='red', cex=5.0)
+    ##
+    legend(x='topleft',
+           legend=c('pseudo', 'best fit'),
+           col=c('black', 'red'),
+           lty=c(0, 1), pch=c('o', NA))
+    ##
+    df_pars <- data.frame(fit=fit[['optim']][['bestmem']], pseudo=pd_pars)
+    df_pars[['par']] <- c('slope L', 'slope R', 'join (x)', 'join (y)', 'delta')
+    df_pars <- df_pars[c('par', 'fit', 'pseudo')]
+    leg_text <- apply(format(df_pars, digits=3, scientific=TRUE), 1,
+                      function(x) paste(x, collapse=','))
+    legend(x='bottomright',
+           inset=c(0.0, -0.6),
+           legend=leg_text)
 }
 
 
