@@ -87,6 +87,34 @@ fit_WB_hyperbola<- function(pcp, npp, upper, lower, ctl)
     return(r)
 }
 
+fit.AIC <- function(nobs, npars, sse) {
+  aic <- nobs * log(sse) + 2*npars
+  return(aic)
+}
+
+fit_line <- function(pcp, npp) {
+    linfit <- lm(pcp~npp, data=data.frame(pcp=pcp, npp=npp))
+    sse <- sum(linfit[['residuals']]^2)
+    return(linfit)
+}
+
+compare_lm_hyperbola<- function(linfit, hyfit)
+{
+    ## Purpose:
+    ## ----------------------------------------------------------------------
+    ## Arguments:
+    ## ----------------------------------------------------------------------
+    ## Author: Timothy W. Hilton, Date: 21 Nov 2016, 15:11
+    aic_lin <- fit.AIC(nobs=length(linfit[['residuals']]),
+                       npars=length(coef(linfit)),
+                       sse=sum(linfit[['residuals']]^2))
+    aic_hy <- fit.AIC(nobs=length(linfit[['residuals']]),
+                      npars=length(hyfit[['optim']][['bestmem']]),
+                      sse=hyfit[['optim']][['bestval']])
+    return(list(aic_lin=aic_lin, aic_hy=aic_hy))
+}
+
+
 plot_pd_fit <- function(pcp, npp_pd, pd_pars, fit)
 {
     ## Purpose:
@@ -136,10 +164,12 @@ upper <- c(100, 100, 1000, 3000, 30)
 
 n_pseudo <- 100
 pd <- generate_pseudodata(pcp, lower, upper, n_pseudo)
-fits <- lapply(pd[['data']], fit_WB_hyperbola, pcp=pcp, lower=lower, upper=upper, ctl=ctl)
+## hyfits <- lapply(pd[['data']], fit_WB_hyperbola, pcp=pcp, lower=lower, upper=upper, ctl=ctl)
+linfits <- lapply(pd[['data']], fit_line, pcp=pcp)
+fit_comparison <- lapply(hyfits, linfits)
 pdf(file='pseudodata.pdf')
 for (i in seq(1, n_pseudo)){
-    plot_pd_fit(pcp=pcp, npp_pd=pd[['data']][[i]], pd_pars=pd[['pars']][[i]], fit=fits[[i]])
+    plot_pd_fit(pcp=pcp, npp_pd=pd[['data']][[i]], pd_pars=pd[['pars']][[i]], fit=hyfits[[i]])
 }
 dev.off()
 
