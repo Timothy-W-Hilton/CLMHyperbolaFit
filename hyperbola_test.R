@@ -60,20 +60,18 @@ WB_hyperbola_SSE <- function(pars, pcp, npp_obs) {
 }
 
 generate_pseudodata <- function(pcp, lower, upper, n) {
+    ## doesn't work for n=1 for some reason, need to figure out why
     ## generate random hyperbola parameters within specified bounds
-    pars <- mapply(function(LB, UB, n){runif(n, LB, UB)},
+    parvals <- mapply(function(LB, UB, n){runif(n, LB, UB)},
                    lower, upper, MoreArgs = list(n=n))
-    pars <- as.data.frame(t(pars))
+    parvals <- as.data.frame(t(parvals))
     ## generate hyperbola from the random parameters
-    data <- lapply(pars, function(pars, pcp){
-        WB_hyperbola(pcp,
-                     pars[[1]], pars[[2]], pars[[3]],
-                     pars[[4]], pars[[5]])
-    },
+    data <- lapply(parvals, function(p, pcp){
+        WB_hyperbola(pcp, p[[1]], p[[2]], p[[3]], p[[4]], p[[5]])},
                    pcp=pcp)
     ## add some noise to the psuedodata
     data <- lapply(data, function(x) return(x + rnorm(length(x), sd = max(abs(x)) / 20.0)))
-    return(list(pars=pars, data=data))
+    return(list(pars=parvals, data=data))
 }
 
 fit_WB_hyperbola<- function(pcp, npp, upper, lower, ctl)
@@ -92,8 +90,8 @@ fit.AIC <- function(nobs, npars, sse) {
   return(aic)
 }
 
-fit_line <- function(pcp, npp) {
-    linfit <- lm(pcp~npp, data=data.frame(pcp=pcp, npp=npp))
+fit_line <- function(npp, pcp) {
+    linfit <- lm(npp~pcp, data=data.frame(pcp=pcp, npp=npp))
     sse <- sum(linfit[['residuals']]^2)
     return(linfit)
 }
@@ -115,7 +113,7 @@ compare_lm_hyperbola<- function(linfit, hyfit)
 }
 
 
-plot_pd_fit <- function(pcp, npp_pd, pd_pars, fit)
+plot_pd_fit <- function(pcp, npp_pd, pd_pars, fit, linfit, aic)
 {
     ## Purpose:
     ## ----------------------------------------------------------------------
@@ -128,6 +126,7 @@ plot_pd_fit <- function(pcp, npp_pd, pd_pars, fit)
     plot(pcp, npp_pd, ylab='annual NPP', xlab='annual pcp (mm)')
     points(pcp, npp_mod, type='l', lwd=3, col='#1b9e77')
     points(pars[[3]], pars[[4]], pch=13, col='#1b9e77', cex=3.0, lwd=5.0)
+    points(pcp, predict(linfit), col='red', lty=1)
     ##
     legend(x='bottomleft',
            legend=c('pseudodata', 'best hyperbola'),
@@ -148,40 +147,25 @@ plot_pd_fit <- function(pcp, npp_pd, pd_pars, fit)
 
 ndata <- 400
 pcp <- seq(0, 1000, length.out=ndata)
-theta_1 <- 0.4
-theta_2 <- 0.3
-x_0 <- 500
-beta_0 <- 450
-delta <- 10
-npp_obs <- WB_hyperbola(pcp, theta_1, theta_2, x_0, beta_0, delta) + rnorm(ndata, sd=5)
 
 ctl <- DEoptim.control(itermax=1e3, trace=500, strategy=1)
 lower <- c(-100, -100, 0, 0, 1e-10)
 upper <- c(100, 100, 1000, 3000, 30)
-## r <- DEoptim(fn=WB_hyperbola_SSE, lower=lower, upper=upper, control=ctl, pcp, npp_obs)
-## pars <- r[['optim']][['bestmem']]
-## npp_mod <- WB_hyperbola(pcp, pars[[1]], pars[[2]], pars[[3]], pars[[4]], pars[[5]])
 
-n_pseudo <- 100
+n_pseudo <- 2
 pd <- generate_pseudodata(pcp, lower, upper, n_pseudo)
-## hyfits <- lapply(pd[['data']], fit_WB_hyperbola, pcp=pcp, lower=lower, upper=upper, ctl=ctl)
+hyfits <- lapply(pd[['data']], fit_WB_hyperbola, pcp=pcp, lower=lower, upper=upper, ctl=ctl)
 linfits <- lapply(pd[['data']], fit_line, pcp=pcp)
-fit_comparison <- lapply(hyfits, linfits)
+fit_comparison <- as.data.frame(t(mapply(compare_lm_hyperbola, linfits, hyfits)))
+fit_comparison[['aic_lin']] <- as.numeric(fit_comparison[['aic_lin']])
+fit_comparison[['aic_hy']] <- as.numeric(fit_comparison[['aic_hy']])
+
 pdf(file='pseudodata.pdf')
 for (i in seq(1, n_pseudo)){
-    plot_pd_fit(pcp=pcp, npp_pd=pd[['data']][[i]], pd_pars=pd[['pars']][[i]], fit=hyfits[[i]])
+    plot_pd_fit(pcp=pcp, npp_pd=pd[['data']][[i]],
+                pd_pars=pd[['pars']][[i]],
+                fit=hyfits[[i]],
+                linfit=linfits[[i]],
+                aic=fit_comparison[i, ])
 }
 dev.off()
-
-## pdf(file='pseudodata.pdf')
-## for (i in seq(1, n_pseudo)){
-##     plot(pcp, pd[['data']][[i]])
-## }
-## dev.off()
-
-
-
-## SSE_correct <- WB_hyperbola_SSE(list(theta_1, theta_2, x_0, beta_0, delta),
-##                                 pcp, npp_obs)
-## plot(pcp, npp_obs, xlim=c(-100, 3000), ylim=c(-100, 3000))
-## points(pcp, npp_mod, pch='*', col='red')
