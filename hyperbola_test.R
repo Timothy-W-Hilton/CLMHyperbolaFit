@@ -76,6 +76,31 @@ generate_pseudodata <- function(pcp, lower, upper, n) {
     return(list(pars=pars, data=data))
 }
 
+fit_WB_hyperbola<- function(pcp, npp, upper, lower, ctl)
+{
+    ## Purpose:
+    ## ----------------------------------------------------------------------
+    ## Arguments:
+    ## ----------------------------------------------------------------------
+    ## Author: Timothy W. Hilton, Date: 21 Nov 2016, 12:30
+    r <- DEoptim(fn=WB_hyperbola_SSE, lower=lower, upper=upper, control=ctl, pcp, npp)
+    return(r)
+}
+
+plot_pd_fit <- function(pcp, npp_pd, pd_pars, fit)
+{
+    ## Purpose:
+    ## ----------------------------------------------------------------------
+    ## Arguments:
+    ## ----------------------------------------------------------------------
+    ## Author: Timothy W. Hilton, Date: 21 Nov 2016, 12:38
+    pars <- fit[['optim']][['bestmem']]
+    npp_mod <- WB_hyperbola(pcp, pars[[1]], pars[[2]], pars[[3]], pars[[4]], pars[[5]])
+    plot(pcp, npp_pd)
+    points(pcp, npp_mod, col='red', type='l', lwd=3)
+}
+
+
 ndata <- 400
 pcp <- seq(0, 1000, length.out=ndata)
 theta_1 <- 0.4
@@ -85,20 +110,27 @@ beta_0 <- 450
 delta <- 10
 npp_obs <- WB_hyperbola(pcp, theta_1, theta_2, x_0, beta_0, delta) + rnorm(ndata, sd=5)
 
-ctl <- DEoptim.control(itermax=1e4, trace=250, strategy=1)
+ctl <- DEoptim.control(itermax=1e3, trace=500, strategy=1)
 lower <- c(-100, -100, 0, 0, 1e-10)
 upper <- c(100, 100, 1000, 3000, 30)
 ## r <- DEoptim(fn=WB_hyperbola_SSE, lower=lower, upper=upper, control=ctl, pcp, npp_obs)
 ## pars <- r[['optim']][['bestmem']]
 ## npp_mod <- WB_hyperbola(pcp, pars[[1]], pars[[2]], pars[[3]], pars[[4]], pars[[5]])
 
-n_pseudo <- 15
+n_pseudo <- 3
 pd <- generate_pseudodata(pcp, lower, upper, n_pseudo)
-pdf(file='psdeudodata.pdf')
+fits <- lapply(pd[['data']], fit_WB_hyperbola, pcp=pcp, lower=lower, upper=upper, ctl=ctl)
+pdf(file='pseudodata.pdf')
 for (i in seq(1, n_pseudo)){
-    plot(pcp, pd[['data']][[i]])
+    plot_pd_fit(pcp=pcp, npp_pd=pd[['data']][[i]], pd_pars=pd[['pars']][[i]], fit=fits[[i]])
 }
 dev.off()
+
+## pdf(file='pseudodata.pdf')
+## for (i in seq(1, n_pseudo)){
+##     plot(pcp, pd[['data']][[i]])
+## }
+## dev.off()
 
 
 
