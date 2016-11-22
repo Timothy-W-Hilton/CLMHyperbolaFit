@@ -120,18 +120,24 @@ plot_pd_fit <- function(pcp, npp_pd, pd_pars, fit, linfit, aic)
     ## Arguments:
     ## ----------------------------------------------------------------------
     ## Author: Timothy W. Hilton, Date: 21 Nov 2016, 12:38
+    my_lty <- c(NA, 1, 2, 1, 2)
+    if (aic[['aic_lin']] < aic[['aic_hy']]) {
+        my_lty <- c(NA, 2, 1, 1, 2)
+    }
+
     pars <- fit[['optim']][['bestmem']]
     npp_mod <- WB_hyperbola(pcp, pars[[1]], pars[[2]], pars[[3]], pars[[4]], pars[[5]])
     par(mar=c(12.1, 4.1, 4.1, 2.1), xpd=TRUE)
     plot(pcp, npp_pd, ylab='annual NPP', xlab='annual pcp (mm)')
-    points(pcp, npp_mod, type='l', lwd=3, col='#1b9e77')
+    points(pcp, npp_mod, type='l', lwd=5, col='#1b9e77', lty=my_lty[2])
     points(pars[[3]], pars[[4]], pch=13, col='#1b9e77', cex=3.0, lwd=5.0)
-    points(pcp, predict(linfit), col='red', lty=1)
+    lines(pcp, predict(linfit), col='#d95f02', lwd=5, lty=my_lty[3])
     ##
+
     legend(x='bottomleft',
-           legend=c('pseudodata', 'best hyperbola'),
-           col=c('black', '#1b9e77'),
-           lty=c(0, 1), pch=c(1, 13),
+           legend=c('pseudodata', 'best hyperbola', 'best line', 'AIC chose', 'AIC rejected'),
+           col=c('black', '#1b9e77', '#d95f02', 'black', 'black'),
+           lty=my_lty, pch=c(1, 13, NA, NA, NA), lwd=c(NA, 2, 2, 2, 2),
            inset=c(0.0, -0.6))
     ##
     df_pars <- data.frame(fit=fit[['optim']][['bestmem']], pseudo=pd_pars)
@@ -152,7 +158,7 @@ ctl <- DEoptim.control(itermax=1e3, trace=500, strategy=1)
 lower <- c(-100, -100, 0, 0, 1e-10)
 upper <- c(100, 100, 1000, 3000, 30)
 
-n_pseudo <- 2
+n_pseudo <- 100
 pd <- generate_pseudodata(pcp, lower, upper, n_pseudo)
 hyfits <- lapply(pd[['data']], fit_WB_hyperbola, pcp=pcp, lower=lower, upper=upper, ctl=ctl)
 linfits <- lapply(pd[['data']], fit_line, pcp=pcp)
