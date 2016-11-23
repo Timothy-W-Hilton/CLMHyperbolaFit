@@ -150,28 +150,36 @@ plot_pd_fit <- function(pcp, npp_pd, pd_pars, fit, linfit, aic)
            legend=leg_text)
 }
 
+pseudodata_main <- function()
+{
+    ## Purpose:
+    ## ----------------------------------------------------------------------
+    ## Arguments:
+    ## ----------------------------------------------------------------------
+    ## Author: Timothy W. Hilton, Date: 23 Nov 2016, 09:13
 
-ndata <- 400
-pcp <- seq(0, 1000, length.out=ndata)
+    ndata <- 400
+    pcp <- seq(0, 1000, length.out=ndata)
 
-ctl <- DEoptim.control(itermax=1e3, trace=500, strategy=1)
-lower <- c(-100, -100, 0, 0, 1e-10)
-upper <- c(100, 100, 1000, 3000, 30)
+    ctl <- DEoptim.control(itermax=1e3, trace=500, strategy=1)
+    lower <- c(-100, -100, 0, 0, 1e-10)
+    upper <- c(100, 100, 1000, 3000, 30)
 
-n_pseudo <- 100
-pd <- generate_pseudodata(pcp, lower, upper, n_pseudo)
-hyfits <- lapply(pd[['data']], fit_WB_hyperbola, pcp=pcp, lower=lower, upper=upper, ctl=ctl)
-linfits <- lapply(pd[['data']], fit_line, pcp=pcp)
-fit_comparison <- as.data.frame(t(mapply(compare_lm_hyperbola, linfits, hyfits)))
-fit_comparison[['aic_lin']] <- as.numeric(fit_comparison[['aic_lin']])
-fit_comparison[['aic_hy']] <- as.numeric(fit_comparison[['aic_hy']])
+    n_pseudo <- 100
+    pd <- generate_pseudodata(pcp, lower, upper, n_pseudo)
+    hyfits <- lapply(pd[['data']], fit_WB_hyperbola, pcp=pcp, lower=lower, upper=upper, ctl=ctl)
+    linfits <- lapply(pd[['data']], fit_line, pcp=pcp)
+    fit_comparison <- as.data.frame(t(mapply(compare_lm_hyperbola, linfits, hyfits)))
+    fit_comparison[['aic_lin']] <- as.numeric(fit_comparison[['aic_lin']])
+    fit_comparison[['aic_hy']] <- as.numeric(fit_comparison[['aic_hy']])
 
-pdf(file='pseudodata.pdf')
-for (i in seq(1, n_pseudo)){
-    plot_pd_fit(pcp=pcp, npp_pd=pd[['data']][[i]],
-                pd_pars=pd[['pars']][[i]],
-                fit=hyfits[[i]],
-                linfit=linfits[[i]],
-                aic=fit_comparison[i, ])
+    pdf(file='pseudodata.pdf')
+    for (i in seq(1, n_pseudo)){
+        plot_pd_fit(pcp=pcp, npp_pd=pd[['data']][[i]],
+                    pd_pars=pd[['pars']][[i]],
+                    fit=hyfits[[i]],
+                    linfit=linfits[[i]],
+                    aic=fit_comparison[i, ])
+    }
+    dev.off()
 }
-dev.off()
