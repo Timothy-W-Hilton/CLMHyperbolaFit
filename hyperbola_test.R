@@ -1,5 +1,6 @@
 library(DEoptim)
-
+library(chron)
+library(Hmisc)  ## for monthDays
 #==============================================================
 ##' calculates sum of squares of X.
 ##'
@@ -183,3 +184,47 @@ pseudodata_main <- function()
     }
     dev.off()
 }
+
+
+
+parse_monthly_data <- function(fpath='./monthly_vals.txt')
+{
+    ## Purpose: parse monthly_vals.txt to a data frame
+    ##
+    ## also calculates timestamps
+    ## ----------------------------------------------------------------------
+    ## Arguments:
+    ## ----------------------------------------------------------------------
+    ## Author: Timothy W. Hilton, Date: 23 Nov 2016, 09:14
+    df <- read.csv(fpath)
+    df[['X']] <- NULL   ## this column contains row number; delete it
+    datestrs <- strsplit(as.character(df[['date']]), ' ')
+    datestrs <- unlist(strsplit(as.character(df[['date']]), ' '))
+    timestrs <- datestrs[seq(2, length(datestrs), 2)]
+    datestrs <- datestrs[seq(1, length(datestrs), 2)]
+    df[['date']] <- chron(datestrs, timestrs, format=c('y-m-d', 'h:m:s'))
+    df[['ndays']] <- monthDays(df[['date']])
+    return(df)
+}
+
+get_annual_pcp_npp <- function(df) {
+
+    df[['var']] <- revalue(df[['var']], c("FPSN"="NPP"))
+    df[['loc']] <- revalue(df[['loc']],
+                           c("Sierra Foothill Research Extension Center"=
+                                 "Sierra Foothill",
+                             "Loma Ridge Global Change Experiment"=
+                                 "Loma Ridge"))
+    df <- df[df[['var']] %in% c('NPP', 'RAIN'), ]
+    df[['year']] <- years(df[['date']])
+    S_PER_DAY <- 60 * 60 * 24  ## seconds per day
+    df[['monthsum']] <- df[['value']] * df[['ndays']] * S_PER_DAY
+    annsum <- aggregate(x=df[['value']], by=df[, c('case', 'loc', 'var', 'year')], FUN=sum)
+    annsum <- reshape(annsum, timevar = "var",
+                      idvar = c("case", "loc", "year"),
+                      direction = "wide")
+    annsum <- rename(annsum, c('x.NPP'='NPP', 'x.RAIN'='RAIN'))
+    return(annsum)
+}
+
+## xyplot(NPP~RAIN|loc, groups=case, data=bar)
