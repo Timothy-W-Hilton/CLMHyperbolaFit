@@ -4,6 +4,7 @@ library(Hmisc)  ## for monthDays
 library(plyr)
 library(lattice)
 library(RColorBrewer)
+library(latticeExtra)
 
 #==============================================================
 ##' calculates sum of squares of X.
@@ -255,8 +256,9 @@ fit_curves_to_site <- function(ad) {
     ## return(list(hyfit=hyfit, linfit=linfit, comparison=fit_comparison))
     hypars <- hyfit[['optim']][['bestmem']]
     result <- data.frame(loc=site_name,
-                         theta_0=hypars[[1]], theta_1=hypars[[2]],
-                         x_0=hypars[[3]], theta_0=hypars[[4]],
+                         theta_1=hypars[[1]],
+                         theta_2=hypars[[2]],
+                         x_0=hypars[[3]], beta_0=hypars[[4]],
                          delta=hypars[[5]],
                          m = coef(linfit)[[1]], b=coef(linfit)[[2]],
                          AIC.hy=fit_comparison[['aic_hy']],
@@ -269,19 +271,39 @@ fit_curves_to_site <- function(ad) {
 ##                                top-level main
 ## ================================================================================
 
-main <- function() {
-    md <- parse_monthly_data()  ## monthly data
-    ad <- get_annual_pcp_npp(md)  ## annual data
-    return(list(md=md, ad=ad))
+predict_hy <- function(df) {
+    df[['best_hy']] <- WB_hyperbola(df[['RAIN']],
+                                    df[['theta_1']],
+                                    df[['theta_2']],
+                                    df[['x_0']],
+                                    df[['beta_0']],
+                                    df[['delta']])
+    df[['best_lin']] <- df[['RAIN']] * df[['m']] + df[['b']]
+    return(df)
 }
 
-pal <- brewer.pal(n=3, name='Dark2')
-xyplot(NPP~RAIN|loc, groups=case, data=ad,
-       xlab=expression(Rain~(mm~yr^{-1})),
-       ylab=expression(NPP~(g~C~m^{-2}~yr^{-1})),
-       col=pal[1:2], pch=c(24, 25),
-       key=list(text=list(levels(ad[['case']])), space='top',
-                                points=list(pch=c(24, 25)), col=pal[1:2]),
-                                lines=list(col=pal[1:2]),
-                                columns=nlevels(ad[['case']]))
+md <- parse_monthly_data()  ## monthly data
+ad <- get_annual_pcp_npp(md)  ## annual data
 fits <- ddply(ad, "loc", fit_curves_to_site)
+ad_fits <- merge(fits, ad)
+ad_mod <- ddply(ad_fits, "loc", predict_hy)  ## annual data, modeled
+ad_mod <- ddply(ad_mod, "loc", function(x) x[order(x[['RAIN']]), ])
+
+pal <- brewer.pal(n=3, name='Dark2')
+plt <- xyplot(NPP~RAIN|loc, groups=case, data=ad_mod,
+              xlab=expression(Rain~(mm~yr^{-1})),
+              ylab=expression(NPP~(g~C~m^{-2}~yr^{-1})),
+              col=pal[1:2], pch=c(24, 25),
+              key=list(text=list(levels(ad[['case']])), space='top',
+                  points=list(pch=c(24, 25)), col=pal[1:2],
+                  ## lines=list(col=pal[1:2]),
+                  columns=nlevels(ad[['case']])))
+plt <- plt + xyplot(best_hy~RAIN|loc,
+                    groups=case,
+                    data=ad_mod,
+                    type=c('s', 'l'),
+                    col=pal[1:2],
+                    panel=function(x, y, ...) {
+                        panel.lines(x, y, col.line='black')})
+
+## modh <- lm(NPP~I(beta_0+(((theta_1+theta_2)/2.0)*(RAIN-x_0))+(((theta_1-theta_2)/2.0)*sqrt((RAIN-x_0)^2+((delta*delta)/4))))|loc, data=bar)
