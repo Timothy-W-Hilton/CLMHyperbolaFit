@@ -288,6 +288,7 @@ fits <- ddply(ad, "loc", fit_curves_to_site)
 ad_fits <- merge(fits, ad)
 ad_mod <- ddply(ad_fits, "loc", predict_hy)  ## annual data, modeled
 ad_mod <- ddply(ad_mod, "loc", function(x) x[order(x[['RAIN']]), ])
+ad_mod <- within(ad_mod, best_hy[AIC.hy > AIC.lin] <- NA)
 
 pal <- brewer.pal(n=3, name='Dark2')
 plt <- xyplot(NPP~RAIN|loc, groups=case, data=ad_mod,
