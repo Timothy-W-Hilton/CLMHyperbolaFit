@@ -236,7 +236,7 @@ get_annual_pcp_npp <- function(df) {
 
 ## md <- parse_monthly_data()
 ## ad <- get_annual_pcp_npp(md)
-## xyplot(NPP~RAIN|loc, groups=case, data=ad)
 xyplot(NPP~RAIN|loc, groups=case, data=ad,
-       xlab='Rain (mm yr-1)',
-       ylab='NPP (g C m-2 yr-1)')
+       xlab=expression(Rain~(mm~yr^{-1})),
+       ylab=expression(NPP~(g~C~m^{-2}~yr^{-1})),
+       auto.key=TRUE)
