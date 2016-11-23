@@ -1,6 +1,9 @@
 library(DEoptim)
 library(chron)
 library(Hmisc)  ## for monthDays
+library(plyr)
+library(lattice)
+
 #==============================================================
 ##' calculates sum of squares of X.
 ##'
@@ -219,7 +222,11 @@ get_annual_pcp_npp <- function(df) {
     df[['year']] <- years(df[['date']])
     S_PER_DAY <- 60 * 60 * 24  ## seconds per day
     df[['monthsum']] <- df[['value']] * df[['ndays']] * S_PER_DAY
-    annsum <- aggregate(x=df[['value']], by=df[, c('case', 'loc', 'var', 'year')], FUN=sum)
+    npp_idx <- df[['var']] == 'NPP'
+    MOL_PER_UMOL <- 1e-6
+    C_G_PER_MOL <- 12
+    df[npp_idx, 'monthsum'] <- df[npp_idx, 'monthsum'] * MOL_PER_UMOL * C_G_PER_MOL
+    annsum <- aggregate(x=df[['monthsum']], by=df[, c('case', 'loc', 'var', 'year')], FUN=sum)
     annsum <- reshape(annsum, timevar = "var",
                       idvar = c("case", "loc", "year"),
                       direction = "wide")
@@ -227,4 +234,9 @@ get_annual_pcp_npp <- function(df) {
     return(annsum)
 }
 
-## xyplot(NPP~RAIN|loc, groups=case, data=bar)
+## md <- parse_monthly_data()
+## ad <- get_annual_pcp_npp(md)
+## xyplot(NPP~RAIN|loc, groups=case, data=ad)
+xyplot(NPP~RAIN|loc, groups=case, data=ad,
+       xlab='Rain (mm yr-1)',
+       ylab='NPP (g C m-2 yr-1)')
