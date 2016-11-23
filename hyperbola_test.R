@@ -18,8 +18,6 @@ library(RColorBrewer)
 ##' @return sum of squares of x
 ##' @author Timothy W. Hilton
 getSSE <- function(x) {
-
-
   if (length(which(!is.na(x))) == 0) return(1e20)
   else return(sum( x^2, na.rm=TRUE))
 }
@@ -189,7 +187,9 @@ pseudodata_main <- function()
     dev.off()
 }
 
-
+## ================================================================================
+##                                data pre-processing
+## ================================================================================
 
 parse_monthly_data <- function(fpath='./monthly_vals.txt')
 {
@@ -235,8 +235,46 @@ get_annual_pcp_npp <- function(df) {
     return(annsum)
 }
 
-## md <- parse_monthly_data()
-## ad <- get_annual_pcp_npp(md)
+## ================================================================================
+##                                fit curves to site data
+## ================================================================================
+
+fit_curves_to_site <- function(ad) {
+    site_name <- as.character(unique(ad[['loc']]))
+    if (length(site_name) != 1) {
+        stop('annual data (ad) must contain one and only one site')
+    }
+    ctl <- DEoptim.control(itermax=1e3, trace=500, strategy=1)
+    lower <- c(-100, -100, 0, 0, 1e-10)
+    upper <- c(100, 100, 1000, 3000, 30)
+    hyfit <- fit_WB_hyperbola(pcp=ad[['RAIN']], npp=ad[['NPP']], lower=lower, upper=upper, ctl=ctl)
+    linfit <- fit_line(npp=ad[['NPP']], pcp=ad[['RAIN']])
+    fit_comparison <- compare_lm_hyperbola(linfit, hyfit)
+    ## fit_comparison[['aic_lin']] <- as.numeric(fit_comparison[['aic_lin']])
+    ## fit_comparison[['aic_hy']] <- as.numeric(fit_comparison[['aic_hy']])
+    ## return(list(hyfit=hyfit, linfit=linfit, comparison=fit_comparison))
+    hypars <- hyfit[['optim']][['bestmem']]
+    result <- data.frame(loc=site_name,
+                         theta_0=hypars[[1]], theta_1=hypars[[2]],
+                         x_0=hypars[[3]], theta_0=hypars[[4]],
+                         delta=hypars[[5]],
+                         m = coef(linfit)[[1]], b=coef(linfit)[[2]],
+                         AIC.hy=fit_comparison[['aic_hy']],
+                         AIC.lin=fit_comparison[['aic_lin']])
+    class(result) <- append(class(result), 'hyperbolafit')
+    return(result)
+}
+
+## ================================================================================
+##                                top-level main
+## ================================================================================
+
+main <- function() {
+    md <- parse_monthly_data()  ## monthly data
+    ad <- get_annual_pcp_npp(md)  ## annual data
+    return(list(md=md, ad=ad))
+}
+
 pal <- brewer.pal(n=3, name='Dark2')
 xyplot(NPP~RAIN|loc, groups=case, data=ad,
        xlab=expression(Rain~(mm~yr^{-1})),
@@ -246,3 +284,4 @@ xyplot(NPP~RAIN|loc, groups=case, data=ad,
                                 points=list(pch=c(24, 25)), col=pal[1:2]),
                                 lines=list(col=pal[1:2]),
                                 columns=nlevels(ad[['case']]))
+fits <- ddply(ad, "loc", fit_curves_to_site)
