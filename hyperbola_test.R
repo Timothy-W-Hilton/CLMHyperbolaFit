@@ -3,6 +3,7 @@ library(chron)
 library(Hmisc)  ## for monthDays
 library(plyr)
 library(lattice)
+library(RColorBrewer)
 
 #==============================================================
 ##' calculates sum of squares of X.
@@ -236,7 +237,12 @@ get_annual_pcp_npp <- function(df) {
 
 ## md <- parse_monthly_data()
 ## ad <- get_annual_pcp_npp(md)
+pal <- brewer.pal(n=3, name='Dark2')
 xyplot(NPP~RAIN|loc, groups=case, data=ad,
        xlab=expression(Rain~(mm~yr^{-1})),
        ylab=expression(NPP~(g~C~m^{-2}~yr^{-1})),
-       auto.key=TRUE)
+       col=pal[1:2], pch=c(24, 25),
+       key=list(text=list(levels(ad[['case']])), space='top',
+                                points=list(pch=c(24, 25)), col=pal[1:2]),
+                                lines=list(col=pal[1:2]),
+                                columns=nlevels(ad[['case']]))
