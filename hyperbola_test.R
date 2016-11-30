@@ -332,9 +332,12 @@ for (i in seq(1, dim(nppctl)[1])) {
                               RAIN=c(rainctl[i, j,], rainide[i, j,]))
         land_point <- (!(all(is.na(this_ad[['NPP']]))) &
                        any(this_ad[['NPP']] > 0.0))
-        if (land_point & (n_land_point < 6)) {
+        if (land_point) {
             fits[[n]] <- fit_curves_to_site(this_ad)
             n_land_point <- n_land_point + 1
+        }
+        if (n_land_point > 5) {
+            break
         }
         n <- n + 1
     }
