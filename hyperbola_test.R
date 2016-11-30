@@ -325,6 +325,7 @@ nc_close(nc)
 fits <- vector("list", prod(dim(nppctl)[1:2]))
 n <- 1
 n_land_point <- 0
+cat('begin ', date(), '\n')
 for (i in seq(1, dim(nppctl)[1])) {
     for (j in seq(1, dim(nppctl)[2])) {
         this_ad <- data.frame(loc=paste(i, j, sep='_'),
@@ -336,10 +337,14 @@ for (i in seq(1, dim(nppctl)[1])) {
             fits[[n]] <- fit_curves_to_site(this_ad)
             n_land_point <- n_land_point + 1
         }
-        if (n_land_point > 5) {
-            break
-        }
+        ## if (n_land_point > 5) {
+        ##     break
+        ## }
         n <- n + 1
+        if ((n %% 100) == 0) {
+            cat('n: ', n, '\n')
+        }
     }
 }
 fitsdf <- do.call('rbind', fits)
+cat('done ', date(), '\n')
