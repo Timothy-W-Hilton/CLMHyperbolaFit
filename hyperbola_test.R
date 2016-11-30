@@ -5,6 +5,7 @@ library(plyr)
 library(lattice)
 library(RColorBrewer)
 library(latticeExtra)
+library(ncdf4)
 
 #==============================================================
 ##' calculates sum of squares of X.
@@ -268,7 +269,7 @@ fit_curves_to_site <- function(ad) {
 }
 
 ## ================================================================================
-##                                top-level main
+##                                California site fits
 ## ================================================================================
 
 predict_hy <- function(df) {
@@ -282,29 +283,60 @@ predict_hy <- function(df) {
     return(df)
 }
 
-md <- parse_monthly_data()  ## monthly data
-ad <- get_annual_pcp_npp(md)  ## annual data
-fits <- ddply(ad, "loc", fit_curves_to_site)
-ad_fits <- merge(fits, ad)
-ad_mod <- ddply(ad_fits, "loc", predict_hy)  ## annual data, modeled
-ad_mod <- ddply(ad_mod, "loc", function(x) x[order(x[['RAIN']]), ])
-ad_mod <- within(ad_mod, best_hy[AIC.hy > AIC.lin] <- NA)
+fit_california_sites <- function() {
+    md <- parse_monthly_data()  ## monthly data
+    ad <- get_annual_pcp_npp(md)  ## annual data
+    fits <- ddply(ad, "loc", fit_curves_to_site)
+    ad_fits <- merge(fits, ad)
+    ad_mod <- ddply(ad_fits, "loc", predict_hy)  ## annual data, modeled
+    ad_mod <- ddply(ad_mod, "loc", function(x) x[order(x[['RAIN']]), ])
+    ad_mod <- within(ad_mod, best_hy[AIC.hy > AIC.lin] <- NA)
 
-pal <- brewer.pal(n=3, name='Dark2')
-plt <- xyplot(NPP~RAIN|loc, groups=case, data=ad_mod,
-              xlab=expression(Rain~(mm~yr^{-1})),
-              ylab=expression(NPP~(g~C~m^{-2}~yr^{-1})),
-              col=pal[1:2], pch=c(24, 25),
-              key=list(text=list(levels(ad[['case']])), space='top',
-                  points=list(pch=c(24, 25)), col=pal[1:2],
-                  ## lines=list(col=pal[1:2]),
-                  columns=nlevels(ad[['case']])))
-plt <- plt + xyplot(best_hy~RAIN|loc,
-                    groups=case,
-                    data=ad_mod,
-                    type=c('s', 'l'),
-                    col=pal[1:2],
-                    panel=function(x, y, ...) {
-                        panel.lines(x, y, col.line='black')})
+    pal <- brewer.pal(n=3, name='Dark2')
+    plt <- xyplot(NPP~RAIN|loc, groups=case, data=ad_mod,
+                  xlab=expression(Rain~(mm~yr^{-1})),
+                  ylab=expression(NPP~(g~C~m^{-2}~yr^{-1})),
+                  col=pal[1:2], pch=c(24, 25),
+                  key=list(text=list(levels(ad[['case']])), space='top',
+                           points=list(pch=c(24, 25)), col=pal[1:2],
+                           ## lines=list(col=pal[1:2]),
+                           columns=nlevels(ad[['case']])))
+    plt <- plt + xyplot(best_hy~RAIN|loc,
+                        groups=case,
+                        data=ad_mod,
+                        type=c('s', 'l'),
+                        col=pal[1:2],
+                        panel=function(x, y, ...) {
+                            panel.lines(x, y, col.line='black')})
+    return(plt)
+}
 
-## modh <- lm(NPP~I(beta_0+(((theta_1+theta_2)/2.0)*(RAIN-x_0))+(((theta_1-theta_2)/2.0)*sqrt((RAIN-x_0)^2+((delta*delta)/4))))|loc, data=bar)
+## ================================================================================
+##                                read CLM netCDF
+## ================================================================================
+
+nc <- nc_open('NPP_RAIN_annual.nc')
+nppctl <- ncvar_get(nc, 'NPPctl')
+nppide <- ncvar_get(nc, 'NPPide')
+rainctl <- ncvar_get(nc, 'RAINctl')
+rainide <- ncvar_get(nc, 'RAINide')
+nc_close(nc)
+
+fits <- vector("list", prod(dim(nppctl)[1:2]))
+n <- 1
+n_land_point <- 0
+for (i in seq(1, dim(nppctl)[1])) {
+    for (j in seq(1, dim(nppctl)[2])) {
+        this_ad <- data.frame(loc=paste(i, j, sep='_'),
+                              NPP=c(nppctl[i, j,], nppide[i, j,]),
+                              RAIN=c(rainctl[i, j,], rainide[i, j,]))
+        land_point <- (!(all(is.na(this_ad[['NPP']]))) &
+                       any(this_ad[['NPP']] > 0.0))
+        if (land_point & (n_land_point < 6)) {
+            fits[[n]] <- fit_curves_to_site(this_ad)
+            n_land_point <- n_land_point + 1
+        }
+        n <- n + 1
+    }
+}
+fitsdf <- do.call('rbind', fits)
