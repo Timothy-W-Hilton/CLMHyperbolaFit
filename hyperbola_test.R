@@ -394,7 +394,7 @@ fitsdf_ncdf <- function(fitsdf, fname_nc) {
     nrowsCLM <- 384   ## max(fitsdf[['i']])
     ncolsCLM <- 576   ## max(fitsdf[['j']])
     fieldnames <- c("theta_1", "theta_2", "x_0", "beta_0", "delta", "m",
-                    "b", "AIC.hy", "AIC.lin", 'hy_best', 'AICrat')
+                    "b", "AIC.hy", "AIC.lin", 'hy_best', 'AICrat', 'inflc_rat')
     fields <- vector(mode='list', length=length(fieldnames))
     names(fields) <- fieldnames
     ncvars <- vector(mode='list', length=length(fieldnames))
@@ -412,11 +412,17 @@ fitsdf_ncdf <- function(fitsdf, fname_nc) {
     }
     ncnew <- nc_create(filename=fname_nc, vars=ncvars)
     for (this_name in names(fields)) {
-        fields[[this_name]] <- fillvals(fitsdf, this_name, nrowsCLM, ncolsCLM)
-        ncvar_put(nc=ncnew,
-                  varid=ncvars[[this_name]],
-                  vals=fields[[this_name]])
+        if (this_name != 'inflc_rat') {
+            fields[[this_name]] <- fillvals(fitsdf, this_name, nrowsCLM, ncolsCLM)
+            ncvar_put(nc=ncnew,
+                      varid=ncvars[[this_name]],
+                      vals=fields[[this_name]])
+        }
     }
+    means <- get_means()
+    ncvar_put(ncnew,
+              varid='inflc_rat',
+              vals=fields[['x_0']] / t(means[['RAIN']]))
     nc_close(ncnew)
     return(fields)
 }
