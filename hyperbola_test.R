@@ -315,7 +315,7 @@ fit_california_sites <- function() {
 ##                                read CLM netCDF
 ## ================================================================================
 
-fit_global <- function() {
+fit_global <- function(dofits=TRUE) {
     nc <- nc_open('NPP_RAIN_annual.nc')
     nppctl <- ncvar_get(nc, 'NPPctl')
     nppide <- ncvar_get(nc, 'NPPide')
@@ -335,7 +335,9 @@ fit_global <- function() {
             land_point <- (!(all(is.na(this_ad[['NPP']]))) &
                            any(this_ad[['NPP']] > 0.0))
             if (land_point) {
-                fits[[n]] <- fit_curves_to_site(this_ad)
+                if (dofits) {
+                    fits[[n]] <- fit_curves_to_site(this_ad)
+                }
                 n_land_point <- n_land_point + 1
             }
             ## if (n_land_point > 5) {
@@ -364,16 +366,16 @@ fitsdf_ncdf <- function(fitsdf, fname_nc) {
     coords <- strsplit(as.character(fitsdf[['loc']]), '_')
     fitsdf[['i']] <- sapply(coords, function(x) as.numeric(x[[1]]))
     fitsdf[['j']] <- sapply(coords, function(x) as.numeric(x[[2]]))
-    nrowsCLM <- max(fitsdf[['i']])
-    ncolsCLM <- max(fitsdf[['j']])
+    nrowsCLM <- 376  ## max(fitsdf[['i']])
+    ncolsCLM <- 584  ## max(fitsdf[['j']])
     fieldnames <- c("theta_1", "theta_2", "x_0", "beta_0", "delta", "m",
                     "b", "AIC.hy", "AIC.lin", 'hy_best', 'AICrat')
     fields <- vector(mode='list', length=length(fieldnames))
     names(fields) <- fieldnames
     ncvars <- vector(mode='list', length=length(fieldnames))
     names(ncvars) <- fieldnames
-    latdim <- ncdim_def(name='lat', units='index', vals=seq(1, nrowsCLM))
-    londim <- ncdim_def(name='lon', units='index', vals=seq(1, ncolsCLM))
+    latdim <- ncdim_def(name='latidx', units='index', vals=seq(1, nrowsCLM))
+    londim <- ncdim_def(name='lonidx', units='index', vals=seq(1, ncolsCLM))
     for (this_name in names(fields)) {
         ncvars[[this_name]] <- ncvar_def(name=this_name,
                                          units="parameter values",
