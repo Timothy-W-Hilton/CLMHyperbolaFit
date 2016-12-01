@@ -359,13 +359,15 @@ fillvals <- function(df, valscol, nrows, ncols) {
 }
 
 fitsdf_ncdf <- function(fitsdf, fname_nc) {
+    fitsdf[['hy_best']] <- fitsdf[['AIC.hy']] < fitsdf[['AIC.lin']]
+    fitsdf[['AICrat']] <- fitsdf[['AIC.hy']] / fitsdf[['AIC.lin']]
     coords <- strsplit(as.character(fitsdf[['loc']]), '_')
     fitsdf[['i']] <- sapply(coords, function(x) as.numeric(x[[1]]))
     fitsdf[['j']] <- sapply(coords, function(x) as.numeric(x[[2]]))
     nrowsCLM <- max(fitsdf[['i']])
     ncolsCLM <- max(fitsdf[['j']])
     fieldnames <- c("theta_1", "theta_2", "x_0", "beta_0", "delta", "m",
-                    "b", "AIC.hy", "AIC.lin")
+                    "b", "AIC.hy", "AIC.lin", 'hy_best', 'AICrat')
     fields <- vector(mode='list', length=length(fieldnames))
     names(fields) <- fieldnames
     ncvars <- vector(mode='list', length=length(fieldnames))
