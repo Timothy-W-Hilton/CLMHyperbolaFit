@@ -6,6 +6,7 @@ library(lattice)
 library(RColorBrewer)
 library(latticeExtra)
 library(ncdf4)
+library(abind)
 
 #==============================================================
 ##' calculates sum of squares of X.
@@ -360,6 +361,30 @@ fillvals <- function(df, valscol, nrows, ncols) {
     return(result)
 }
 
+get_lats_lons <- function(fname=file.path(Sys.getenv('HOME'), 'work',
+                              'Data', 'CLM_Output',
+                              'NPP_RAIN_annual.nc')) {
+    nc <- nc_open(fname)
+    lon <- ncvar_get(nc=nc, varid='lon')
+    lat <- ncvar_get(nc=nc, varid='lat')
+    nc_close(nc)
+    return(list(lon=lon, lat=lat))
+}
+
+get_means <- function(fname=file.path(Sys.getenv('HOME'), 'work',
+                          'Data', 'CLM_Output',
+                          'NPP_RAIN_annual.nc')) {
+    nc <- nc_open(fname)
+    NPPctl <- ncvar_get(nc, 'NPPctl')
+    NPPide <- ncvar_get(nc, 'NPPide')
+    RAINctl <- ncvar_get(nc, 'RAINctl')
+    RAINide <- ncvar_get(nc, 'RAINide')
+    nc_close(nc)
+    means <- list(NPP=apply(abind(NPPctl, NPPide, along=3), c(1, 2), mean),
+                  RAIN=apply(abind(RAINctl, RAINide, along=3), c(1, 2), mean))
+    return(means)
+}
+
 fitsdf_ncdf <- function(fitsdf, fname_nc) {
     fitsdf[['hy_best']] <- fitsdf[['AIC.hy']] < fitsdf[['AIC.lin']]
     fitsdf[['AICrat']] <- fitsdf[['AIC.hy']] / fitsdf[['AIC.lin']]
@@ -374,8 +399,9 @@ fitsdf_ncdf <- function(fitsdf, fname_nc) {
     names(fields) <- fieldnames
     ncvars <- vector(mode='list', length=length(fieldnames))
     names(ncvars) <- fieldnames
-    latdim <- ncdim_def(name='latidx', units='index', vals=seq(1, nrowsCLM))
-    londim <- ncdim_def(name='lonidx', units='index', vals=seq(1, ncolsCLM))
+    lonlat <- get_lats_lons()
+    londim <- ncdim_def(name='lon', units='deg N', vals=lonlat[['lon']])
+    latdim <- ncdim_def(name='lat', units='deg E', vals=lonlat[['lat']])
     for (this_name in names(fields)) {
         ncvars[[this_name]] <- ncvar_def(name=this_name,
                                          units="parameter values",
