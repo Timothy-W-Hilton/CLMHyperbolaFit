@@ -380,8 +380,10 @@ get_means <- function(fname=file.path(Sys.getenv('HOME'), 'work',
     RAINctl <- ncvar_get(nc, 'RAINctl')
     RAINide <- ncvar_get(nc, 'RAINide')
     nc_close(nc)
-    means <- list(NPP=apply(abind(NPPctl, NPPide, along=3), c(1, 2), mean),
-                  RAIN=apply(abind(RAINctl, RAINide, along=3), c(1, 2), mean))
+    ## means <- list(NPP=apply(abind(NPPctl, NPPide, along=3), c(1, 2), mean),
+    ##               RAIN=apply(abind(RAINctl, RAINide, along=3), c(1, 2), mean))
+    means <- list(NPP=apply(NPPctl, c(1, 2), mean),
+                  RAIN=apply(RAINctl, c(1, 2), mean))
     return(means)
 }
 
@@ -420,10 +422,13 @@ fitsdf_ncdf <- function(fitsdf, fname_nc) {
         }
     }
     means <- get_means()
+    inflc_pt_rain_ratio <- fields[['x_0']] / t(means[['RAIN']])
+    inflc_pt_rain_ratio[fields[['hy_best']] < 1e-6] <- NA
     ncvar_put(ncnew,
               varid='inflc_rat',
-              vals=fields[['x_0']] / t(means[['RAIN']]))
+              vals=inflc_pt_rain_ratio)
     nc_close(ncnew)
+    fields[['mean_rain']] <- t(means[['RAIN']])
     return(fields)
 }
 
