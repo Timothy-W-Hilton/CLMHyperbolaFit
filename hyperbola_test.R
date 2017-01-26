@@ -355,7 +355,21 @@ fit_global <- function(dofits=TRUE) {
     return(fitsdf)
 }
 
+##' place values from a data frame (i.e. long-format) into a matrix
+##'
+##' the data frame must contain columns i and j.  matrix[i, j] the
+##' values in df[[valscol]] are placed into matrix[i, j] according to
+##' the indices in df[['i']] and df[['j']].
+##' @title place values from list into matrix
+##' @param df a data frame
+##' @param valscol the name of the column in df containing values
+##' @param nrows number of rows in the matrix to be created
+##' @param ncols number of columns in the matrix to be created
+##' @return a matrix containing the values from df
+##' @author Timothy W. Hilton
+##' @export
 fillvals <- function(df, valscol, nrows, ncols) {
+
     result <- matrix(data=NA, nrow=nrows, ncol=ncols)
     result[ cbind(df$i, df$j) ] <- df[[valscol]]
     return(result)
@@ -371,10 +385,13 @@ get_lats_lons <- function(fname=file.path(Sys.getenv('HOME'), 'work',
     return(list(lon=lon, lat=lat))
 }
 
-get_means <- function(fname=file.path(Sys.getenv('HOME'), 'work',
+get_means <- function(fname_CLM=file.path(Sys.getenv('HOME'), 'work',
                           'Data', 'CLM_Output',
-                          'NPP_RAIN_annual.nc')) {
-    nc <- nc_open(fname)
+                          'NPP_RAIN_annual.nc'),
+                      fname_qian_lt=file.path(Sys.getenv('HOME'), 'work',
+                          'Data', 'CLM_Output',
+                          'qian_ann_mean_pcp.nc')) {
+    nc <- nc_open(fname_CLM)
     NPPctl <- ncvar_get(nc, 'NPPctl')
     NPPide <- ncvar_get(nc, 'NPPide')
     RAINctl <- ncvar_get(nc, 'RAINctl')
@@ -382,8 +399,16 @@ get_means <- function(fname=file.path(Sys.getenv('HOME'), 'work',
     nc_close(nc)
     ## means <- list(NPP=apply(abind(NPPctl, NPPide, along=3), c(1, 2), mean),
     ##               RAIN=apply(abind(RAINctl, RAINide, along=3), c(1, 2), mean))
+
+    # read Qian et al (2006) 1948-2004 mean precipitation
+    nc <- nc_open(fname_qian_lt)
+    RAINlt <- ncvar_get(nc, 'pcp')
+    nc_close(nc)
+    # combine variables to list
     means <- list(NPP=apply(NPPctl, c(1, 2), mean),
-                  RAIN=apply(RAINctl, c(1, 2), mean))
+                  RAIN_CLM=apply(RAINctl, c(1, 2), mean),
+                  RAIN_QIAN=RAINlt)
+
     return(means)
 }
 
@@ -422,15 +447,18 @@ fitsdf_ncdf <- function(fitsdf, fname_nc) {
         }
     }
     means <- get_means()
-    inflc_pt_rain_ratio <- fields[['x_0']] / t(means[['RAIN']])
+    inflc_pt_rain_ratio <- fields[['x_0']] / t(means[['RAIN_QIAN']])
     inflc_pt_rain_ratio[fields[['hy_best']] < 1e-6] <- NA
     ncvar_put(ncnew,
               varid='inflc_rat',
               vals=inflc_pt_rain_ratio)
     nc_close(ncnew)
-    fields[['mean_rain']] <- t(means[['RAIN']])
+    fields[['mean_rain']] <- t(means[['RAIN_QIAN']])
     return(fields)
 }
 
 ## save(fitsdf, file='fitsdf.RData')
 load('fitsdf.RData')
+fields <- fitsdf_ncdf(fitsdf, 'test.nc')
+# to plot, e.g.
+plot(fields[['mean_rain']], fields[['x_0']])
